@@ -10,7 +10,7 @@ class PaymentPopup extends StatefulWidget {
   final String departureDate;
   final String returnDate;
   final String agentName;
-  final Function(String) onPaymentSuccess; // Changed to accept bookingCode
+  final Function(String) onPaymentSuccess;
 
   const PaymentPopup({
     super.key,
@@ -35,6 +35,8 @@ class _PaymentPopupState extends State<PaymentPopup> {
   Map<String, dynamic>? _appliedPromo;
   late double _originalPriceUsd;
   late double _currentTotalUsd;
+  String? _statusMessage;
+  bool _isErrorMessage = false;
 
   @override
   void initState() {
@@ -66,72 +68,43 @@ class _PaymentPopupState extends State<PaymentPopup> {
     super.dispose();
   }
 
+  void _showStatus(String message, {bool isError = false}) {
+    setState(() {
+      _statusMessage = message;
+      _isErrorMessage = isError;
+    });
+  }
+
   void _applyPromo() {
     final code = _promoController.text.trim();
-    if (code.isEmpty) {
-      setState(() {
-        _appliedPromo = null;
-        _currentTotalUsd = _originalPriceUsd;
-      });
-      return;
-    }
+    final result = PriceCalculator.applyPromoCode(code, _originalPriceUsd);
 
-    if (SessionData.isPromoUsed(code)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This promo code has already been used.')),
-      );
-      setState(() {
-        _appliedPromo = null;
-        _currentTotalUsd = _originalPriceUsd;
-      });
-      return;
-    }
-
-    final promo = SessionData.getPromotionByCode(code);
-
-    if (promo != null) {
-      setState(() {
-        _appliedPromo = promo;
-        _currentTotalUsd = PriceCalculator.calculateDiscountedPrice(
-          _originalPriceUsd,
-          promo,
-        );
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Promo code applied: ${promo['code']}')),
-      );
-    } else {
-      setState(() {
-        _appliedPromo = null;
-        _currentTotalUsd = _originalPriceUsd;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid promo code')));
-    }
+    setState(() {
+      _appliedPromo = result['promo'];
+      _currentTotalUsd = result['price'];
+      _statusMessage = result['message'];
+      _isErrorMessage = !result['success'];
+    });
   }
 
   Future<void> _validateAndPay() async {
     if (_appliedPromo == null && _promoController.text.trim().isNotEmpty) {
       _applyPromo();
-      if (_appliedPromo == null && _promoController.text.trim().isNotEmpty)
+      if (_appliedPromo == null && _promoController.text.trim().isNotEmpty) {
         return;
+      }
     }
 
     if (_cardNumberController.text.trim().isEmpty ||
         _expiryController.text.trim().isEmpty ||
         _cvvController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all payment details')),
-      );
+      _showStatus('Please fill in all payment details', isError: true);
       return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to complete payment')),
-      );
+      _showStatus('Please login to complete payment', isError: true);
       return;
     }
 
@@ -139,7 +112,6 @@ class _PaymentPopupState extends State<PaymentPopup> {
       SessionData.usePromo(_appliedPromo!['code']);
     }
 
-    // Generate unique booking code
     final String bookingCode = (Random().nextInt(900000) + 100000).toString();
 
     try {
@@ -165,9 +137,7 @@ class _PaymentPopupState extends State<PaymentPopup> {
       widget.onPaymentSuccess(bookingCode);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        _showStatus('Payment failed: $e', isError: true);
       }
     }
   }
@@ -190,6 +160,50 @@ class _PaymentPopupState extends State<PaymentPopup> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_statusMessage != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: _isErrorMessage ? Colors.red[50] : Colors.green[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _isErrorMessage ? Colors.red : Colors.green,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isErrorMessage
+                          ? Icons.error_outline
+                          : Icons.check_circle_outline,
+                      color: _isErrorMessage ? Colors.red : Colors.green,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _statusMessage!,
+                        style: TextStyle(
+                          color: _isErrorMessage
+                              ? Colors.red[900]
+                              : Colors.green[900],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _statusMessage = null),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
             Icon(
               _isQuickPay ? Icons.flash_on : Icons.payment,
               size: 48,

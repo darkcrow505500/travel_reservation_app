@@ -36,70 +36,26 @@ class _WishlistPageState extends State<WishlistPage> {
     final user = FirebaseAuth.instance.currentUser;
     final isLoggedIn = user != null;
 
-    return Column(
-      children: [
-        // Session Header
-        Container(
-          padding: const EdgeInsets.all(12),
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: isLoggedIn
-                ? Colors.greenAccent.withOpacity(0.1)
-                : Colors.orangeAccent.withOpacity(0.1),
-            border: Border(
-              bottom: BorderSide(
-                color: isLoggedIn ? Colors.green : Colors.orange,
-                width: 0.5,
-              ),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isLoggedIn
-                    ? Icons.verified_user
-                    : Icons.account_circle_outlined,
-                size: 16,
-                color: isLoggedIn ? Colors.green : Colors.orange,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isLoggedIn
-                    ? 'Session Active: ${user.email}'
-                    : 'Guest Session - Login to save items',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: isLoggedIn ? Colors.green[700] : Colors.orange[800],
-                ),
-              ),
-            ],
-          ),
-        ),
+    if (!isLoggedIn) {
+      return _buildLoginPrompt();
+    }
 
-        Expanded(
-          child: !isLoggedIn
-              ? _buildLoginPrompt()
-              : StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user.uid)
-                      .collection('wishlist')
-                      .orderBy('addedAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return _buildEmptyState();
-                    }
-                    return _buildWishlist(snapshot.data!.docs);
-                  },
-                ),
-        ),
-      ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('wishlist')
+          .orderBy('addedAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState();
+        }
+        return _buildWishlist(snapshot.data!.docs);
+      },
     );
   }
 

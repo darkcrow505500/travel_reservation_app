@@ -35,6 +35,7 @@ class PriceCalculator {
     return basePrice * days;
   }
 
+  /// Calculates the discounted price based on the promotion type.
   static double calculateDiscountedPrice(
     double originalPrice,
     Map<String, dynamic> promo,
@@ -47,5 +48,48 @@ class PriceCalculator {
       return (originalPrice - amount).clamp(0.0, double.infinity);
     }
     return originalPrice;
+  }
+
+  /// Validates a promo code and returns the result including success status,
+  /// the applied promo object, the new price, and a display message.
+  static Map<String, dynamic> applyPromoCode(
+    String code,
+    double originalPrice,
+  ) {
+    if (code.isEmpty) {
+      return {
+        'success': true,
+        'price': originalPrice,
+        'promo': null,
+        'message': null,
+      };
+    }
+
+    if (SessionData.isPromoUsed(code)) {
+      return {
+        'success': false,
+        'price': originalPrice,
+        'promo': null,
+        'message': 'This promo code has already been used.',
+      };
+    }
+
+    final promo = SessionData.getPromotionByCode(code);
+    if (promo != null) {
+      final discountedPrice = calculateDiscountedPrice(originalPrice, promo);
+      return {
+        'success': true,
+        'price': discountedPrice,
+        'promo': promo,
+        'message': 'Promo code applied: ${promo['code']}',
+      };
+    }
+
+    return {
+      'success': false,
+      'price': originalPrice,
+      'promo': null,
+      'message': 'Invalid promo code',
+    };
   }
 }
