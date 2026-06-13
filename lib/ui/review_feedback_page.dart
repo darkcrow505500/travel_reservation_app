@@ -22,12 +22,6 @@ class _ReviewFeedbackPageState extends State<ReviewFeedbackPage> {
 
   Future<void> _submitFeedback() async {
     final comment = _feedbackController.text.trim();
-    if (comment.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your feedback')),
-      );
-      return;
-    }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -133,7 +127,7 @@ class _ReviewFeedbackPageState extends State<ReviewFeedbackPage> {
             ),
             const SizedBox(height: 32),
             const Text(
-              'Tell us more',
+              'Tell us more (Optional)',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -214,6 +208,7 @@ class _ReviewFeedbackPageState extends State<ReviewFeedbackPage> {
                     itemBuilder: (context, index) {
                       final fb =
                           feedbacks[index].data() as Map<String, dynamic>;
+                      final comment = fb['comment'] as String?;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
                         shape: RoundedRectangleBorder(
@@ -248,11 +243,13 @@ class _ReviewFeedbackPageState extends State<ReviewFeedbackPage> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                fb['comment'] ?? '',
-                                style: const TextStyle(fontSize: 15),
-                              ),
+                              if (comment != null && comment.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  comment,
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                              ],
                             ],
                           ),
                         ),
