@@ -142,15 +142,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    // Implement password reset if needed
-                  },
-                  child: const Text('Forgot Password?'),
-                ),
-              ),
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,
